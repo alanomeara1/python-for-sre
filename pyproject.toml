@@ -1,0 +1,18 @@
+[project]
+name = "python-for-sre"
+version = "0.1.0"
+description = "Repetition drills for SRE/DevOps Python: study, copy, recall, vary."
+requires-python = ">=3.12"
+dependencies = [
+    "pytest>=8",
+    "requests>=2.32",
+    "pyyaml>=6",
+    "boto3>=1.34",
+    "moto[ec2,s3]>=5",
+]
+
+[tool.pytest.ini_options]
+# Every drill folder has files with the same names (test_solution.py, test_variant.py),
+# so tests must be imported by path, not as packages.
+addopts = "--import-mode=importlib -q"
+testpaths = ["drills"]

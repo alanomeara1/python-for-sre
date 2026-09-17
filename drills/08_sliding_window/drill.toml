@@ -1,0 +1,4 @@
+title = "Sliding windows: error-rate alert and rate limiter"
+target_minutes = 15
+variant_target_minutes = 12
+patterns = ["collections.deque append/popleft", "running counters instead of re-scanning", "evict-then-answer", "defaultdict(deque) per key", "token bucket lazy refill", "defaultdict(lambda: ...)", "defending against clocks that go backwards"]

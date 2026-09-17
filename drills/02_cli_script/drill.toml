@@ -1,0 +1,4 @@
+title = "CLI script: argparse, logging, Nagios exit codes"
+target_minutes = 15
+variant_target_minutes = 20
+patterns = ["argparse skeleton with build_parser()", "main(argv) -> int and sys.exit(main())", "logging.basicConfig to stderr, --verbose", "parser.error() for cross-argument validation", "exit codes as an API (0/1/2/3)", "shutil.disk_usage", "json.load + datetime.fromisoformat"]

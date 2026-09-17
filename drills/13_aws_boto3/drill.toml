@@ -1,0 +1,4 @@
+title = "AWS with boto3: unattached volumes, tag compliance, safe stop"
+target_minutes = 20
+variant_target_minutes = 20
+patterns = ["client passed in (dependency injection)", "get_paginator(...).paginate(Filters=...)", "Reservations -> Instances nesting", "instance.get('Tags', []) and set difference", "ClientError and e.response['Error']['Code']", "DryRun=True succeeds by raising DryRunOperation", "moto mock_aws and botocore Stubber in tests"]

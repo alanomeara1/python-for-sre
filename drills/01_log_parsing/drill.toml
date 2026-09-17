@@ -1,0 +1,4 @@
+title = "Log parsing: status codes, top talkers, error rate"
+target_minutes = 15
+variant_target_minutes = 15
+patterns = ["re.compile with named groups", "match.groupdict()", "collections.Counter / most_common", "with open() streaming line by line", "generator of parsed records", "datetime.strptime", "guarding divide-by-zero"]

@@ -1,0 +1,4 @@
+title = "Concurrency: check many endpoints with a thread pool"
+target_minutes = 15
+variant_target_minutes = 15
+patterns = ["ThreadPoolExecutor as a context manager", "futures dict {future: key} + as_completed", "isolating per-task failures", "time.monotonic() latency", "requests.RequestException hierarchy", "socket.create_connection with timeout", "sorting tuples for deterministic output"]

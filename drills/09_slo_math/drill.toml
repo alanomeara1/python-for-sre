@@ -1,0 +1,4 @@
+title = "SLO math: percentiles, error budgets, burn-rate paging"
+target_minutes = 15
+variant_target_minutes = 20
+patterns = ["nearest-rank percentile with math.ceil", "guarding empty data with ValueError", "error budget = 1 - SLO", "multiwindow burn-rate alert", "csv.DictReader over io.StringIO", "datetime.fromisoformat and timedelta.total_seconds", "defaultdict(list) grouping", "statistics.fmean", "sorted with (-value, id) key"]

@@ -1,0 +1,4 @@
+title = "Generator pipelines: streaming, grep, JSON lines, batching, tail -f"
+target_minutes = 20
+variant_target_minutes = 15
+patterns = ["yield from a with-open loop", "generator pipelines (lazy, constant memory)", "json.loads with JSONDecodeError", "itertools.islice for batching", "walrus in a while loop", "seek to end + readline polling (tail -f)", "injecting sleep for testability"]

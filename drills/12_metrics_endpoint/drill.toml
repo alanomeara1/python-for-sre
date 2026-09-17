@@ -1,0 +1,4 @@
+title = "Metrics endpoint: Prometheus counters, timing, /metrics and /healthz"
+target_minutes = 25
+variant_target_minutes = 15
+patterns = ["threading.Lock around shared state", "label dict -> sorted tuple as a dict key", "Prometheus text exposition format", "contextlib.contextmanager with try/finally", "time.perf_counter for durations", "http.server BaseHTTPRequestHandler + ThreadingHTTPServer", "port 0 for tests", "health checks that fail closed"]

@@ -1,0 +1,12 @@
+# Your reps: rewritten every time, not part of the reference material.
+attempts/
+progress.json
+
+# Old one-off scripts, kept locally but no longer used.
+archive/
+
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+.DS_Store

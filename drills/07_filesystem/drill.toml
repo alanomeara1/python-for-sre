@@ -1,0 +1,4 @@
+title = "Filesystem cleanup: old files, dry runs, log rotation"
+target_minutes = 20
+variant_target_minutes = 15
+patterns = ["os.walk (does not follow symlinks)", "fnmatch.fnmatch", "Path.stat().st_mtime / st_size", "time.time() with injectable now", "dry_run=True default", "unlink(missing_ok=True)", "sort by mtime and slice", "date.fromisoformat + weekday()", "set union for retention rules"]

@@ -1,0 +1,4 @@
+title = "Intervals: merge outages, downtime, availability, concurrent failures"
+target_minutes = 20
+variant_target_minutes = 20
+patterns = ["sort then merge (compare start to last end)", "clipping to a window with max/min", "sweep line over +1/-1 events", "sort key tuple for tie-breaking", "timedelta arithmetic and ratios", "zero of the right type"]

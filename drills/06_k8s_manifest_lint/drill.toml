@@ -1,0 +1,4 @@
+title = "Kubernetes manifest linter (and Terraform plan guard)"
+target_minutes = 20
+variant_target_minutes = 15
+patterns = ["yaml.safe_load_all over multi-document YAML", "(d.get(key) or {}) chains for missing or null keys", "image tag parsing with rsplit", "collecting findings as dicts", "sorted with a tuple key", "tuple-keyed lookup table (terraform actions)", "json.load"]

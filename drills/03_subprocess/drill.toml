@@ -1,0 +1,4 @@
+title = "subprocess: run commands safely, parse df"
+target_minutes = 20
+variant_target_minutes = 20
+patterns = ["subprocess.run(list, capture_output=True, text=True, timeout=...)", "never shell=True", "TimeoutExpired / FileNotFoundError handling", "@dataclass result objects", "time.monotonic() for durations", "regex over fixed-width command output", "custom exception carrying stderr"]
