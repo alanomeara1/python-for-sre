@@ -46,6 +46,20 @@ Every drill is one realistic SRE task. You climb the same four rungs each time:
 - **Fluency, not just correctness.** A pass over the target time is logged but doesn't move the drill
   forward. You repeat it tomorrow until you're under target.
 
+### If you're interrupted
+
+The clock only counts time you're actually at the keyboard:
+
+```bash
+drill pause 01       # phone rings, school run, meeting
+drill resume 01      # picks up exactly where it stopped
+drill cancel 01      # abandon the rep entirely: nothing logged, your file kept
+```
+
+`drill list` shows any rep in progress and whether it's running or paused. If you forget to pause and
+the time comes out absurd, `drill check` says so; ignore that reading, since only recall times under
+target move the schedule anyway.
+
 ### Spaced repetition
 
 `drill check` records every pass. A recall that's on target pushes the next review out to
@@ -130,6 +144,9 @@ pool, paginator, retry…) small enough to type in under a minute each.
 | `drill list` | all drills: target, reps, best recall time, next due |
 | `drill start NN [--variant] [--stage copy\|recall\|variant]` | fresh attempt file, starts the clock (stage is auto-picked if omitted) |
 | `drill check NN [--variant]` | runs the tests; a pass is logged as a rep and schedules the next one |
+| `drill pause NN [--variant]` | called away mid-rep: stops the clock, leaves your file alone |
+| `drill resume NN [--variant]` | starts the clock again from where it stopped |
+| `drill cancel NN [--variant]` | abandons the rep, logs nothing, keeps your file |
 | `drill flash [N]` | N random flashcards from PATTERNS.md |
 | `drill verify [NN ...]` | self-test of the course: every reference passes, every stub fails |
 
@@ -150,4 +167,11 @@ can't actually fail.
 If something in this course turns out to be wrong (a reference with a bug, bad advice in a README),
 record it here with the date when you fix it, rather than silently editing it away.
 
-- *(none yet)*
+- **2026-09-23 — `drill start` destroyed a completed attempt.** Alan's 42-minute copy rep of drill 01
+  was lost: `start` overwrote the attempt with the stub and kept only a single `.prev.py` backup, which a
+  second `start` then overwrote too. (Claude made it worse by testing the tool against the live
+  `progress.json` instead of a throwaway one.) Fixed: every previous attempt is now kept under its own
+  timestamp (`solution.20260923-210302.bak.py`), and `DRILL_HOME` redirects reps and history elsewhere so
+  the tool can be tested without touching real work.
+- **2026-09-23 — no way to stop the clock.** A rep interrupted by real life recorded a meaningless time.
+  Fixed: `drill pause` / `resume` / `cancel`, and the clock now sums only the stretches you were working.

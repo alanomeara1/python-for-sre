@@ -6,6 +6,9 @@
     drill start 01              fresh attempt file + start the clock
     drill start 01 --variant    same, for the variant problem
     drill check 01 [--variant]  run the tests; a pass is logged as a rep
+    drill pause 01              called away mid-rep: stop the clock
+    drill resume 01             start it again where you left off
+    drill cancel 01             abandon the rep; nothing is logged
     drill flash [N]             N random idiom flashcards from PATTERNS.md
     drill verify [01 ...]       self-test: references pass, stubs fail
 """
@@ -24,8 +27,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 DRILLS = ROOT / "drills"
-ATTEMPTS = ROOT / "attempts"
-PROGRESS = ROOT / "progress.json"
+# DRILL_HOME redirects your reps and history elsewhere, so tests of this tool
+# can never touch the real ones.
+HOME = Path(os.environ.get("DRILL_HOME", ROOT))
+ATTEMPTS = HOME / "attempts"
+PROGRESS = HOME / "progress.json"
 
 # Days until the next recall rep, indexed by how many on-target recalls you have banked.
 INTERVALS = [1, 2, 4, 7, 14, 30]
@@ -69,6 +75,30 @@ def fmt_secs(seconds: float | None) -> str:
     return f"{m}:{s:02d}"
 
 
+def get_clock(entry: dict, kind: str) -> dict | None:
+    return entry.get("started", {}).get(kind)
+
+
+def clock_elapsed(clock: dict) -> float:
+    """Time actually spent on the rep: banked time plus the stretch running right now."""
+    elapsed = clock.get("elapsed", 0.0)
+    if clock.get("running_since"):
+        elapsed += (datetime.now() - datetime.fromisoformat(clock["running_since"])).total_seconds()
+    return elapsed
+
+
+def open_clock(args) -> tuple[Path, str, dict, dict, dict]:
+    """Shared lookup for pause/resume/cancel: exits if there's no clock on that rep."""
+    drill = find_drill(args.drill)
+    kind = "variant" if args.variant else "solution"
+    progress = load_progress()
+    entry = progress.setdefault(drill.name, {"reps": [], "level": 0})
+    clock = get_clock(entry, kind)
+    if clock is None:
+        sys.exit(f"No rep in progress for {drill.name[:2]} ({kind}). Start one:  drill start {drill.name[:2]}")
+    return drill, kind, progress, entry, clock
+
+
 # ---------------------------------------------------------------- commands
 
 def cmd_list(_args) -> int:
@@ -83,6 +113,15 @@ def cmd_list(_args) -> int:
         flag = " <- due" if due != "new" and due <= today else ""
         print(f"{d.name[:2]:<3} {d.name[3:]:<26} {m['target_minutes']:>5}m "
               f"{len(p.get('reps', [])):>4} {fmt_secs(best):>6}  {due}{flag}")
+
+    in_progress = [(d, kind, clock) for d in all_drills()
+                   for kind, clock in progress.get(d.name, {}).get("started", {}).items()]
+    for d, kind, clock in in_progress:
+        state = "running" if clock.get("running_since") else "PAUSED"
+        flag = " --variant" if kind == "variant" else ""
+        print(f"\nIn progress: {d.name[:2]} {clock['stage']} ({kind}) {state} at {fmt_secs(clock_elapsed(clock))}"
+              f"\n  drill check {d.name[:2]}{flag}   |   drill "
+              f"{'pause' if state == 'running' else 'resume'} {d.name[:2]}{flag}   |   drill cancel {d.name[:2]}{flag}")
     return 0
 
 
@@ -120,11 +159,20 @@ def cmd_start(args) -> int:
     stub = drill / ("variant_stub.py" if args.variant else "stub.py")
     target = ATTEMPTS / drill.name / f"{kind}.py"
     target.parent.mkdir(parents=True, exist_ok=True)
+    saved_note = None
     if target.exists() and target.read_text() != stub.read_text():
-        shutil.copy(target, target.with_suffix(".prev.py"))
+        # Never reuse one backup slot: a second start would destroy the first rep.
+        # Every previous attempt is kept under its own timestamp.
+        backup = target.with_name(f"{kind}.{datetime.now():%Y%m%d-%H%M%S}.bak.py")
+        shutil.copy(target, backup)
+        saved_note = f"  kept:     {backup.name} (your previous attempt)"
     shutil.copy(stub, target)
 
-    entry.setdefault("started", {})[kind] = {"at": datetime.now().isoformat(), "stage": stage}
+    entry.setdefault("started", {})[kind] = {
+        "running_since": datetime.now().isoformat(),
+        "elapsed": 0.0,
+        "stage": stage,
+    }
     save_progress(progress)
 
     spec = drill / ("variant.md" if args.variant else "README.md")
@@ -133,7 +181,9 @@ def cmd_start(args) -> int:
 
     print(f"\n{meta(drill)['title']}  [{stage.upper()}]  target {target_min} min\n")
     print(f"  spec:     {spec.relative_to(ROOT)}")
-    print(f"  write in: {target.relative_to(ROOT)}")
+    print(f"  write in: {os.path.relpath(target, ROOT)}")
+    if saved_note:
+        print(saved_note)
     if stage == "copy":
         print(f"  copy:     {reference.relative_to(ROOT)}")
         print("\n  Put the reference beside your editor and TYPE it. No pasting.")
@@ -142,7 +192,46 @@ def cmd_start(args) -> int:
         print("\n  Reference closed. Write it from memory, narrating as if to an interviewer.")
         print("  Stuck for more than 2 minutes? Peek at ONE line and carry on. The rep still counts, but it'll be slow.")
     flag = " --variant" if args.variant else ""
-    print(f"\n  Clock started. When the tests should pass:  drill check {drill.name[:2]}{flag}\n")
+    print(f"\n  Clock started. When the tests should pass:  drill check {drill.name[:2]}{flag}")
+    print(f"  Interrupted? drill pause {drill.name[:2]}{flag}   (resume / cancel also work)\n")
+    return 0
+
+
+def cmd_pause(args) -> int:
+    drill, kind, progress, _entry, clock = open_clock(args)
+    if not clock.get("running_since"):
+        print(f"Already paused at {fmt_secs(clock_elapsed(clock))}.")
+        return 0
+    # Bank the time run so far, then stop counting.
+    clock["elapsed"] = clock_elapsed(clock)
+    clock["running_since"] = None
+    save_progress(progress)
+    flag = " --variant" if args.variant else ""
+    print(f"Paused at {fmt_secs(clock['elapsed'])}. Your attempt file is untouched.")
+    print(f"Pick it up with:  drill resume {drill.name[:2]}{flag}")
+    return 0
+
+
+def cmd_resume(args) -> int:
+    drill, kind, progress, _entry, clock = open_clock(args)
+    if clock.get("running_since"):
+        print(f"Already running: {fmt_secs(clock_elapsed(clock))} so far.")
+        return 0
+    clock["running_since"] = datetime.now().isoformat()
+    save_progress(progress)
+    target_min = meta(drill)["variant_target_minutes" if kind == "variant" else "target_minutes"]
+    left = target_min * 60 - clock["elapsed"]
+    print(f"Running again at {fmt_secs(clock['elapsed'])}. "
+          + (f"{fmt_secs(left)} left to stay on target." if left > 0 else "Already over target, so finish it anyway."))
+    return 0
+
+
+def cmd_cancel(args) -> int:
+    drill, kind, progress, entry, clock = open_clock(args)
+    entry["started"].pop(kind, None)
+    save_progress(progress)
+    print(f"Clock discarded after {fmt_secs(clock_elapsed(clock))}; no rep logged. "
+          f"Your attempt file is untouched.\nStart fresh whenever:  drill start {drill.name[:2]}")
     return 0
 
 
@@ -158,20 +247,24 @@ def run_pytest(drill: Path, kind: str, mode: str, quiet: bool = False) -> subpro
 def cmd_check(args) -> int:
     drill = find_drill(args.drill)
     kind = "variant" if args.variant else "solution"
-    result = run_pytest(drill, kind, "attempt")
-    if result.returncode != 0:
-        print("\nNot yet. Read the first failure, fix it, run check again. The clock is still running.")
-        return 1
-
     progress = load_progress()
     entry = progress.setdefault(drill.name, {"reps": [], "level": 0})
-    started = entry.get("started", {}).pop(kind, None)
-    if started is None:
+    clock = get_clock(entry, kind)
+    paused = clock is not None and not clock.get("running_since")
+
+    result = run_pytest(drill, kind, "attempt")
+    if result.returncode != 0:
+        state = "still paused" if paused else "still running"
+        print(f"\nNot yet. Read the first failure, fix it, run check again. The clock is {state}.")
+        return 1
+
+    if clock is None:
         print("\nPassed, but no clock was running (use `drill start` first). Rep not logged.")
         return 0
 
-    seconds = (datetime.now() - datetime.fromisoformat(started["at"])).total_seconds()
-    stage = started["stage"]
+    seconds = clock_elapsed(clock)
+    stage = clock["stage"]
+    entry["started"].pop(kind, None)
     target_min = meta(drill)["variant_target_minutes" if kind == "variant" else "target_minutes"]
     on_target = seconds <= target_min * 60
 
@@ -193,6 +286,10 @@ def cmd_check(args) -> int:
 
     save_progress(progress)
     print(f"\nPASS in {fmt_secs(seconds)}  [{stage}]  {verdict}")
+    if seconds > target_min * 60 * 3:
+        # Almost always a clock left running overnight rather than a genuinely slow rep.
+        print(f"  That's a long way over {target_min} min. If you walked away without pausing, ignore the\n"
+              f"  time on this one and use `drill pause` next time.")
     return 0
 
 
@@ -248,6 +345,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("drill")
     p.add_argument("--variant", action="store_true")
     p.set_defaults(func=cmd_check)
+
+    for name, func, help_text in (("pause", cmd_pause, "stop the clock, keep the rep"),
+                                  ("resume", cmd_resume, "start the clock again"),
+                                  ("cancel", cmd_cancel, "throw the clock away, log nothing")):
+        p = sub.add_parser(name, help=help_text)
+        p.add_argument("drill")
+        p.add_argument("--variant", action="store_true")
+        p.set_defaults(func=func)
 
     p = sub.add_parser("flash")
     p.add_argument("n", nargs="?", type=int, default=5)
