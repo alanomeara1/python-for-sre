@@ -176,6 +176,7 @@ sheet is marked, and re-marking an unchanged sheet doesn't count twice.
 | `drill flash --cancel` | bin the current sheet, log nothing |
 | `drill verify [NN ...]` | self-test of the course: every reference passes, every stub fails |
 | `drill sample NN` | runs the model solution and shows what it produces on realistic input |
+| `drill toc` | rebuild PATTERNS.md's clickable contents list after adding a card |
 | `drill help [command]` | all commands and the ladder, or the detail on one (`drill help start`) |
 
 `drill sample --write` regenerates the sample pages and `--check` fails if any is stale, which keeps
