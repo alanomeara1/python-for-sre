@@ -155,6 +155,10 @@ caught and shown as a diff. Every attempt is logged, so `--weak` can feed you th
 missing and `--stats` shows where you stand. `--reveal` gives the old show-me-the-answer behaviour,
 which is what you want away from a keyboard.
 
+**Called away mid-sheet?** At the prompt, `s` leaves it for later (`drill flash --check` marks it
+whenever you come back) and `c` deletes it. Ctrl+C is the same as `s`. Nothing is logged until a
+sheet is marked, and re-marking an unchanged sheet doesn't count twice.
+
 ## Commands
 
 | Command | Does |
@@ -169,6 +173,7 @@ which is what you want away from a keyboard.
 | `drill flash [N]` | writes a sheet of N idiom prompts, opens it, marks what you typed |
 | `drill flash --weak 5` | the cards you missed last time, or have never tried |
 | `drill flash --stats` | your record per card, worst first |
+| `drill flash --cancel` | bin the current sheet, log nothing |
 | `drill verify [NN ...]` | self-test of the course: every reference passes, every stub fails |
 | `drill sample NN` | runs the model solution and shows what it produces on realistic input |
 | `drill help [command]` | all commands and the ladder, or the detail on one (`drill help start`) |
