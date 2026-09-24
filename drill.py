@@ -484,8 +484,22 @@ TOC_END = "<!-- end toc -->"
 
 
 def github_slug(heading: str) -> str:
-    """GitHub's anchor rules: lowercase, drop punctuation, spaces to hyphens."""
-    slug = heading.strip().lower()
+    """GitHub's anchor rules: lowercase, drop punctuation, spaces to hyphens.
+
+    Emphasis is resolved before slugging, because GitHub slugs the RENDERED text:
+    a bare __main__ renders as bold "main" and loses its underscores, while
+    `__main__` in a code span keeps them.
+    """
+    rendered = []
+    for part in re.split(r"(`[^`]*`)", heading):
+        if part.startswith("`"):
+            rendered.append(part.strip("`"))        # code span: taken literally
+        else:
+            part = re.sub(r"\*\*(.+?)\*\*", r"\1", part)
+            part = re.sub(r"__(.+?)__", r"\1", part)
+            rendered.append(part)
+
+    slug = "".join(rendered).strip().lower()
     slug = "".join(ch for ch in slug if ch.isalnum() or ch in " -_")
     return slug.replace(" ", "-")
 

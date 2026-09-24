@@ -17,7 +17,7 @@ note. Keep that order — the code block must come first, or the card won't be m
 ## Contents
 
 - **[Script skeleton](#script-skeleton)**
-  - [Minimal production script: logging, main() returning an exit code, the __main__ guard](#minimal-production-script-logging-main-returning-an-exit-code-the-__main__-guard)
+  - [Minimal production script: logging, main() returning an exit code, the `__main__` guard](#minimal-production-script-logging-main-returning-an-exit-code-the-__main__-guard)
   - [argparse: positional path, int option with default, boolean flag, parse a given argv](#argparse-positional-path-int-option-with-default-boolean-flag-parse-a-given-argv)
   - [Read a required environment variable, fail clearly if missing; optional one with a default](#read-a-required-environment-variable-fail-clearly-if-missing-optional-one-with-a-default)
   - [Log an exception with its traceback, then re-raise](#log-an-exception-with-its-traceback-then-re-raise)
@@ -67,7 +67,7 @@ note. Keep that order — the code block must come first, or the card won't be m
 
 ## Script skeleton
 
-### Minimal production script: logging, main() returning an exit code, the __main__ guard
+### Minimal production script: logging, main() returning an exit code, the `__main__` guard
 
 ```python
 import logging
