@@ -1,12 +1,15 @@
 # Python for SRE: repetition drills
 
-A short course for building **muscle memory** in the Python that SRE and DevOps interviews ask
-for. You won't work problems out from scratch here. For each problem you're shown a clean,
+A short course for building **muscle memory** in the Python that SRE and DevOps work actually
+demands: parsing logs, shelling out to commands, retrying flaky HTTP, cleaning up disks, doing SLO
+maths. You won't work problems out from scratch here. For each problem you're shown a clean,
 production-quality answer, you type it, and then you rebuild it from memory against tests and a
 clock until it's automatic.
 
-Built for someone who knows Python fundamentals but hasn't spent years writing it every day.
-Free to use and adapt: see [LICENSE](LICENSE).
+**Who it's for:** anyone who knows Python fundamentals but hasn't spent years writing it every day,
+and needs to get fluent quickly — moving into an SRE or platform role, inheriting the on-call
+scripts, or just tired of reaching for the docs to write a `subprocess` call. Free to use and adapt:
+see [LICENSE](LICENSE).
 
 Everything runs offline — no cloud account, no API keys, no network — and the only prerequisites are
 [uv](https://docs.astral.sh/uv/) and a terminal.
@@ -86,7 +89,8 @@ Short day (20 minutes)? Do the flashcards and one due recall. Don't start a new 
 
 ## The drills
 
-Ordered by how often each comes up in SRE coding rounds. Short on time?
+Ordered by how often each comes up in real SRE work, which is also roughly how often it comes up in
+coding rounds. Short on time?
 **Work in this order and stop wherever you run out of road**: 01–05 are the core.
 
 | # | Drill | Main problem | Variant | Core patterns |
