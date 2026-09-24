@@ -154,6 +154,7 @@ pool, paginator, retry…) small enough to type in under a minute each.
 | `drill cancel NN [--variant]` | abandons the rep, logs nothing, keeps your file |
 | `drill flash [N]` | N random flashcards from PATTERNS.md |
 | `drill verify [NN ...]` | self-test of the course: every reference passes, every stub fails |
+| `drill help [command]` | all commands and the ladder, or the detail on one (`drill help start`) |
 
 You can also run the tests directly: `uv run pytest drills/01_log_parsing` tests your attempts.
 Put `DRILL_MODE=reference` in front to test the model answers instead.

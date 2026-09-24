@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
 """drill - repetition trainer for SRE/DevOps Python.
 
-    drill list                  all drills, reps, best times, next due date
-    drill due                   what to do today
-    drill start 01              fresh attempt file + start the clock
-    drill start 01 --variant    same, for the variant problem
-    drill check 01 [--variant]  run the tests; a pass is logged as a rep
-    drill pause 01              called away mid-rep: stop the clock
-    drill resume 01             start it again where you left off
-    drill cancel 01             abandon the rep; nothing is logged
-    drill flash [N]             N random idiom flashcards from PATTERNS.md
-    drill verify [01 ...]       self-test: references pass, stubs fail
+Study the model answer, type it out, rebuild it from memory against the clock,
+then solve a variant. Reps that stay inside the target time come back less often.
+
+    drill due                 what to do today
+    drill help start          detail on any command
 """
 
 import argparse
@@ -330,41 +325,97 @@ def cmd_verify(args) -> int:
     return 1 if failures else 0
 
 
-def main(argv: list[str] | None = None) -> int:
+LADDER = """
+The ladder, one drill at a time:
+  1 STUDY    drills/NN_*/README.md (the task), EXPLAINED.md (the why), reference.py (the answer)
+  2 COPY     drill start NN            type the reference out beside you; no pasting
+  3 RECALL   drill start NN            reference closed, from memory, against the clock
+  4 VARY     drill start NN --variant  same patterns, different problem
+
+A typical session:  drill flash 5   ->   drill due   ->   drill start NN   ->   drill check NN
+Interrupted:        drill pause NN  ->   drill resume NN   (or drill cancel NN to bin the rep)
+Details for one command:  drill help start
+"""
+
+DRILL_ARG_HELP = "drill number or name, e.g. 01 or log_parsing"
+
+
+def cmd_help(args) -> int:
+    parser, commands = build_cli()
+    if args.topic is None:
+        parser.print_help()
+        print(LADDER)
+        return 0
+    if args.topic not in commands:
+        print(f"No command called {args.topic!r}. Try one of: {', '.join(commands)}")
+        return 1
+    commands[args.topic].print_help()
+    return 0
+
+
+def build_cli() -> tuple[argparse.ArgumentParser, dict[str, argparse.ArgumentParser]]:
     parser = argparse.ArgumentParser(prog="drill", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    sub = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(dest="command", required=True, metavar="command")
+    commands: dict[str, argparse.ArgumentParser] = {}
 
-    sub.add_parser("list").set_defaults(func=cmd_list)
-    sub.add_parser("due").set_defaults(func=cmd_due)
-
-    p = sub.add_parser("start")
-    p.add_argument("drill")
-    p.add_argument("--variant", action="store_true")
-    p.add_argument("--stage", choices=STAGES)
-    p.set_defaults(func=cmd_start)
-
-    p = sub.add_parser("check")
-    p.add_argument("drill")
-    p.add_argument("--variant", action="store_true")
-    p.set_defaults(func=cmd_check)
-
-    for name, func, help_text in (("pause", cmd_pause, "stop the clock, keep the rep"),
-                                  ("resume", cmd_resume, "start the clock again"),
-                                  ("cancel", cmd_cancel, "throw the clock away, log nothing")):
-        p = sub.add_parser(name, help=help_text)
-        p.add_argument("drill")
-        p.add_argument("--variant", action="store_true")
+    def add(name: str, func, help_text: str, description: str | None = None):
+        p = sub.add_parser(name, help=help_text, description=description or help_text,
+                           formatter_class=argparse.RawDescriptionHelpFormatter)
         p.set_defaults(func=func)
+        commands[name] = p
+        return p
 
-    p = sub.add_parser("flash")
-    p.add_argument("n", nargs="?", type=int, default=5)
-    p.set_defaults(func=cmd_flash)
+    add("due", cmd_due, "what to do today: reviews that are due, plus the next new drill")
+    add("list", cmd_list, "every drill: target, reps, best recall time, next due, any rep in progress")
 
-    p = sub.add_parser("verify")
-    p.add_argument("drills", nargs="*")
-    p.set_defaults(func=cmd_verify)
+    p = add("start", cmd_start, "begin a rep: fresh attempt file, clock starts",
+            "Begin a rep.\n\n"
+            "Copies the stub into attempts/ and starts the clock. Any previous attempt is kept\n"
+            "under its own timestamp. The stage is chosen for you (copy the first time, recall\n"
+            "after that) unless you pass --stage.")
+    p.add_argument("drill", help=DRILL_ARG_HELP)
+    p.add_argument("--variant", action="store_true", help="the variant problem instead of the main one")
+    p.add_argument("--stage", choices=STAGES,
+                   help="force the stage: copy (reference open), recall (from memory), variant")
 
+    p = add("check", cmd_check, "run the tests; a pass logs the rep and schedules the next",
+            "Run the drill's tests against your attempt.\n\n"
+            "A pass logs the rep and sets the next due date: a recall inside the target time\n"
+            "pushes it out (1, 2, 4, 7, 14, 30 days), over target brings it back tomorrow.\n"
+            "A failure changes nothing and leaves the clock running.")
+    p.add_argument("drill", help=DRILL_ARG_HELP)
+    p.add_argument("--variant", action="store_true", help="check the variant attempt")
+
+    for name, func, help_text in (
+        ("pause", cmd_pause, "called away mid-rep: stop the clock, keep your file"),
+        ("resume", cmd_resume, "start the clock again where it stopped"),
+        ("cancel", cmd_cancel, "abandon the rep: nothing logged, your file kept"),
+    ):
+        p = add(name, func, help_text)
+        p.add_argument("drill", help=DRILL_ARG_HELP)
+        p.add_argument("--variant", action="store_true", help="act on the variant rep")
+
+    p = add("flash", cmd_flash, "N random idiom flashcards from PATTERNS.md",
+            "Show random idiom prompts from PATTERNS.md.\n\n"
+            "Type each answer in a scratch file BEFORE pressing Enter to reveal it,\n"
+            "then compare character for character.")
+    p.add_argument("n", nargs="?", type=int, default=5, help="how many cards (default: 5)")
+
+    p = add("verify", cmd_verify, "self-test the course: references pass, stubs fail",
+            "Self-test of the course, not of you.\n\n"
+            "Checks that every model solution passes its tests and every stub passes none.\n"
+            "Run it after adding or editing a drill. No arguments means all of them.")
+    p.add_argument("drills", nargs="*", help="drills to check (default: all)")
+
+    p = add("help", cmd_help, "this help, or detail on one command")
+    p.add_argument("topic", nargs="?", help="a command name, e.g. start")
+
+    return parser, commands
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser, _ = build_cli()
     args = parser.parse_args(argv)
     return args.func(args)
 
