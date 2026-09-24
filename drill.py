@@ -180,7 +180,10 @@ def cmd_start(args) -> int:
     target_min = meta(drill)["variant_target_minutes" if args.variant else "target_minutes"]
 
     print(f"\n{meta(drill)['title']}  [{stage.upper()}]  target {target_min} min\n")
+    explained = drill / "EXPLAINED.md"
     print(f"  spec:     {spec.relative_to(ROOT)}")
+    if explained.exists():
+        print(f"  why:      {explained.relative_to(ROOT)}  (how and why, when you're stuck)")
     print(f"  write in: {os.path.relpath(target, ROOT)}")
     if saved_note:
         print(saved_note)

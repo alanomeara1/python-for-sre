@@ -6,7 +6,10 @@ production-quality answer, you type it, and then you rebuild it from memory agai
 clock until it's automatic.
 
 Built for someone who knows Python fundamentals but hasn't spent years writing it every day, and is
-interviewing soon (SRE / SRE Manager).
+interviewing soon (SRE / SRE Manager). Free to use and adapt: see [LICENSE](LICENSE).
+
+Everything runs offline — no cloud account, no API keys, no network — and the only prerequisites are
+[uv](https://docs.astral.sh/uv/) and a terminal.
 
 ---
 
@@ -30,7 +33,7 @@ Every drill is one realistic SRE task. You climb the same four rungs each time:
 
 | Rung | What you do | Why |
 |---|---|---|
-| **1. Study** (5 min) | Read the drill's `README.md`, then `reference.py`, top to bottom. Read every comment. | You can't memorise what you don't understand. |
+| **1. Study** (5–10 min) | Read the drill's `README.md` for the task, `EXPLAINED.md` for the reasoning, then `reference.py` top to bottom. | You can't memorise what you don't understand, and understanding is what rebuilds a line you've forgotten. |
 | **2. Copy** | `drill start 01`. Put `reference.py` beside your editor and **type it** into the attempt file. No pasting. Say each line's purpose out loud. `drill check 01`. | Your fingers learn the shapes: imports, signatures, the loop, the return. |
 | **3. Recall** | `drill start 01` again. Reference **closed**. Write it from memory against the clock, then `drill check 01`. | This is the rep that builds memory. Struggling to retrieve it is the point. |
 | **4. Vary** | `drill start 01 --variant`. Read `variant.md`, then solve a *different* problem with the same patterns. `drill check 01 --variant`. | Proves you learned the pattern, not the text. Interviewers never ask the exact question you practised. |
@@ -119,6 +122,8 @@ Target times per drill: `drill list`.
 ```
 drills/01_log_parsing/
   README.md             the task as an interviewer would put it, the exact contract, what to say, traps
+  EXPLAINED.md          how and why, chunk by chunk: the mental model, how to rebuild each part from
+                        first principles, what each failing test means. Read when stuck.
   reference.py          the model answer: the thing you memorise
   stub.py               signatures only: copied into attempts/ by `drill start`
   test_solution.py      what `drill check` runs
@@ -167,11 +172,10 @@ can't actually fail.
 If something in this course turns out to be wrong (a reference with a bug, bad advice in a README),
 record it here with the date when you fix it, rather than silently editing it away.
 
-- **2026-09-23 — `drill start` destroyed a completed attempt.** Alan's 42-minute copy rep of drill 01
-  was lost: `start` overwrote the attempt with the stub and kept only a single `.prev.py` backup, which a
-  second `start` then overwrote too. (Claude made it worse by testing the tool against the live
-  `progress.json` instead of a throwaway one.) Fixed: every previous attempt is now kept under its own
-  timestamp (`solution.20260923-210302.bak.py`), and `DRILL_HOME` redirects reps and history elsewhere so
-  the tool can be tested without touching real work.
+- **2026-09-23 — `drill start` could destroy a finished attempt.** `start` overwrote the attempt file
+  with the stub and kept only a single `.prev.py` backup, which the next `start` overwrote in turn, so a
+  completed rep could be lost for good. Fixed: every previous attempt is now kept under its own timestamp
+  (`solution.20260923-210302.bak.py`), and `DRILL_HOME` points reps and history at a scratch directory so
+  the tool can be exercised without touching real work.
 - **2026-09-23 — no way to stop the clock.** A rep interrupted by real life recorded a meaningless time.
   Fixed: `drill pause` / `resume` / `cancel`, and the clock now sums only the stretches you were working.
