@@ -5,8 +5,8 @@ for. You won't work problems out from scratch here. For each problem you're show
 production-quality answer, you type it, and then you rebuild it from memory against tests and a
 clock until it's automatic.
 
-Built for someone who knows Python fundamentals but hasn't spent years writing it every day, and is
-interviewing soon (SRE / SRE Manager). Free to use and adapt: see [LICENSE](LICENSE).
+Built for someone who knows Python fundamentals but hasn't spent years writing it every day.
+Free to use and adapt: see [LICENSE](LICENSE).
 
 Everything runs offline — no cloud account, no API keys, no network — and the only prerequisites are
 [uv](https://docs.astral.sh/uv/) and a terminal.
@@ -86,8 +86,8 @@ Short day (20 minutes)? Do the flashcards and one due recall. Don't start a new 
 
 ## The drills
 
-Ordered by how often each comes up in SRE coding rounds. If your interviews are close,
-**work in this order and stop wherever you run out of time**: 01–05 are the core.
+Ordered by how often each comes up in SRE coding rounds. Short on time?
+**Work in this order and stop wherever you run out of road**: 01–05 are the core.
 
 | # | Drill | Main problem | Variant | Core patterns |
 |---|---|---|---|---|
@@ -107,13 +107,13 @@ Ordered by how often each comes up in SRE coding rounds. If your interviews are 
 
 Target times per drill: `drill list`.
 
-### A two-week plan if you have interviews coming
+### A two-week plan, if you want one
 
 - **Days 1–5:** one new drill a day (01 → 05), plus that day's reviews.
 - **Days 6–10:** drills 06–10 the same way. The reviews get longer; that's expected.
 - **Days 11–14:** no new drills unless reviews are all on target. Instead, run 3 random recalls a day
   cold (`drill start NN --stage recall`) and do each variant a second time.
-- **The day before an interview:** flashcards, plus one recall of 01 and 02. Stop there, and don't cram.
+- **A light day:** flashcards, plus one recall of 01 and 02. Stop there; cramming doesn't stick.
 
 ---
 
