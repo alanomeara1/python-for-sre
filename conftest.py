@@ -17,6 +17,9 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).parent
+# Must match drill.py: when DRILL_HOME redirects your reps, the tests have to grade
+# the attempt in THAT directory, not the one in the repo.
+HOME = Path(os.environ.get("DRILL_HOME", ROOT))
 
 FILES = {
     "attempt": {"solution": "solution.py", "variant": "variant.py"},
@@ -29,7 +32,7 @@ def _load(drill_dir: Path, kind: str):
     mode = os.environ.get("DRILL_MODE", "attempt")
     filename = FILES[mode][kind]
     if mode == "attempt":
-        path = ROOT / "attempts" / drill_dir.name / filename
+        path = HOME / "attempts" / drill_dir.name / filename
     else:
         path = drill_dir / filename
     if not path.exists():

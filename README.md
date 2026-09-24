@@ -245,6 +245,16 @@ FAIL  Parse an nginx timestamp like 17/Sep/2026:10:15:32 +0000
 Marking compares the **structure** of what you wrote, so your spacing, comments and blank lines cost
 you nothing — but a wrong name, or a `%y` where the card says `%Y`, is caught and shown as a diff.
 
+**After a miss, fix it and mark it again:**
+
+```bash
+drill flash --check        # re-marks the sheet you're working on
+```
+
+Retype the ones you missed from memory rather than copying the diff, save, and run that as many
+times as you like. Each changed version counts as a fresh attempt; re-checking an unchanged sheet
+says so and doesn't count twice.
+
 Every attempt is logged per card, which is what makes the rest useful:
 
 ```bash
@@ -271,6 +281,7 @@ sheet is marked, and re-marking an unchanged sheet doesn't count twice.
 | `drill resume NN [--variant]` | starts the clock again from where it stopped |
 | `drill cancel NN [--variant]` | abandons the rep, logs nothing, keeps your file |
 | `drill flash [N]` | writes a sheet of N idiom prompts, opens it, marks what you typed |
+| `drill flash --check` | mark the current sheet again, after correcting it |
 | `drill flash --weak 5` | the cards you missed last time, or have never tried |
 | `drill flash --stats` | your record per card, worst first |
 | `drill flash --cancel` | bin the current sheet, log nothing |

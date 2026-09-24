@@ -257,7 +257,9 @@ def cmd_check(args) -> int:
     result = run_pytest(drill, kind, "attempt")
     if result.returncode != 0:
         state = "still paused" if paused else "still running"
-        print(f"\nNot yet. Read the first failure, fix it, run check again. The clock is {state}.")
+        flag = " --variant" if args.variant else ""
+        print(f"\nNot yet. Read the FIRST failure only, fix that, then:  drill check {drill.name[:2]}{flag}")
+        print(f"The clock is {state}.")
         return 1
 
     if clock is None:
@@ -385,7 +387,8 @@ def grade_sheet(path: Path, cards: dict[str, str]) -> int:
     scored = "  (unchanged since you last marked it, so not counted again)" if already else ""
     print(f"\n{passed}/{len(results)} from memory.{scored}\n  Sheet kept at {os.path.relpath(path, ROOT)}")
     if passed < len(results):
-        print("Retype the ones you missed now, while the correction is fresh, then re-run --check.")
+        print("Retype the ones you missed now, while the correction is fresh, then mark it again:")
+        print("  drill flash --check")
     return 0
 
 
