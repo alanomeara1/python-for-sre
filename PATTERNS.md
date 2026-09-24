@@ -5,7 +5,12 @@ file before you reveal it**, then compare character for character. The code bloc
 answer. If yours works but looks different, learn this shape anyway: it's the shape
 interviewers recognise.
 
-Format rule (the `flash` command parses it): `### prompt`, then a single python code block.
+Each card carries a **Why it matters** note: the production failure the idiom prevents, or the habit
+an interviewer is listening for. `drill flash` deliberately shows you only the prompt, so read the
+notes here, not mid-drill. An idiom you understand survives pressure; one you've only memorised doesn't.
+
+Format rule (the `flash` command parses it): `### prompt`, then a single python code block, then the
+note. Keep that order — the code block must come first, or the card won't be marked.
 
 ## Script skeleton
 
@@ -28,6 +33,8 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
+**Why it matters:** Returning a code from `main()` rather than calling `sys.exit()` deep in the logic keeps the script importable and testable: a test can call `main([...])` and assert on the number. The exit code *is* the API — cron, systemd, Kubernetes and your monitoring all read it and nothing else. `print()` is for output a human or a pipe consumes; `logging` goes to stderr with timestamps and levels, so the two never get tangled.
+
 ### argparse: positional path, int option with default, boolean flag, parse a given argv
 
 ```python
@@ -41,6 +48,8 @@ args = parser.parse_args(argv)          # argv=None means sys.argv[1:]
 print(args.path, args.days, args.dry_run)
 ```
 
+**Why it matters:** `type=int` validates at the boundary, so a typo fails immediately with a usage message instead of blowing up three functions later. Taking `argv` as a parameter (rather than reading `sys.argv` inside) is what makes the whole script testable.
+
 ### Read a required environment variable, fail clearly if missing; optional one with a default
 
 ```python
@@ -52,6 +61,8 @@ if not token:
 region = os.environ.get("AWS_REGION", "eu-west-1")
 ```
 
+**Why it matters:** Config through the environment keeps secrets out of the repo and lets the same image run in dev and prod. Failing loudly on a missing one at startup beats a `None` that surfaces as a baffling error mid-run, when you're half-deployed.
+
 ### Log an exception with its traceback, then re-raise
 
 ```python
@@ -61,6 +72,8 @@ except Exception:
     log.exception("deploy failed")      # logs at ERROR with the traceback
     raise
 ```
+
+**Why it matters:** `log.exception` records the full traceback, so you can diagnose from logs alone rather than trying to reproduce at 3am. Re-raising matters: swallowing the error would let a failed deploy report success, which is far worse than crashing.
 
 ## Files and text
 
@@ -75,6 +88,8 @@ with open(path, encoding="utf-8") as f:
         process(line)
 ```
 
+**Why it matters:** The single most common mistake in log work is `f.read()` on a file that turned out to be 8GB, which OOMs the box you were trying to debug. Iterating the file object holds one line in memory regardless of size.
+
 ### pathlib: every *.log file under a directory tree, with size and mtime
 
 ```python
@@ -85,6 +100,8 @@ for p in Path(root).rglob("*.log"):
         st = p.stat()
         print(p, st.st_size, st.st_mtime)
 ```
+
+**Why it matters:** Disk-full incidents always end here: find what's big and what's old. `is_file()` matters because `rglob` returns directories and symlinks too, and `stat()` on a broken symlink raises.
 
 ### Write a file atomically (so readers never see half a file)
 
@@ -98,6 +115,8 @@ with os.fdopen(fd, "w") as f:
 os.replace(tmp, path)                   # atomic rename on the same filesystem
 ```
 
+**Why it matters:** Write-then-rename is how you avoid a config reloader, a scraper or the next cron run reading a half-written file. `os.replace` is atomic within a filesystem, so readers see either the old file or the new one, never a torn one.
+
 ### Load JSON from a file, and dump a dict as pretty JSON to stdout
 
 ```python
@@ -108,6 +127,8 @@ with open("config.json") as f:
 print(json.dumps(config, indent=2, sort_keys=True))
 ```
 
+**Why it matters:** JSON out of a script is what makes it composable: `| jq`, into a dashboard, or asserted on by a test. `sort_keys=True` makes the output diffable, which turns 'what changed?' into a one-line answer.
+
 ### Load every document from a multi-doc YAML file safely
 
 ```python
@@ -116,6 +137,8 @@ import yaml
 with open("manifests.yaml") as f:
     docs = [d for d in yaml.safe_load_all(f) if d]
 ```
+
+**Why it matters:** Kubernetes manifests are multi-document by convention, so `safe_load` alone silently gives you only the first. `safe_load` rather than `load` because plain `load` can construct arbitrary Python objects from a file you may not control.
 
 ### Read a CSV into dicts keyed by header
 
@@ -126,6 +149,8 @@ with open("incidents.csv", newline="") as f:
     for row in csv.DictReader(f):
         print(row["id"], row["severity"])
 ```
+
+**Why it matters:** `DictReader` means you read `row["severity"]` instead of `row[3]`, so adding a column upstream doesn't silently shift your data. `newline=""` is required: without it, quoted fields containing newlines get mangled on some platforms.
 
 ## Regex
 
@@ -142,11 +167,15 @@ if m:
     status = int(record["status"])
 ```
 
+**Why it matters:** Named groups survive a format change that renumbers positions, and `groupdict()` hands you a record ready to work with. Compiling once at module level keeps the cost out of a loop that may run a billion times.
+
 ### Find all ERROR codes like E1234 in a string
 
 ```python
 codes = re.findall(r"\bE\d{4}\b", text)
 ```
+
+**Why it matters:** `findall` is the quickest way to pull every occurrence out of a blob of text. `\b` anchors to word boundaries so `XE12345` doesn't produce a false match — the sort of thing that quietly inflates an incident count.
 
 ## Collections
 
@@ -159,6 +188,8 @@ counts = Counter(ip for ip in ips)
 top = counts.most_common(3)             # [(ip, n), ...]
 ```
 
+**Why it matters:** Any question phrased as 'how many' or 'top N' is a `Counter`. It saves the `if key not in d` dance, and `most_common` gives you the sorted answer directly — top talkers, noisiest alert, most frequent error code.
+
 ### Group items into lists by a key
 
 ```python
@@ -169,11 +200,15 @@ for event in events:
     by_host[event["host"]].append(event)
 ```
 
+**Why it matters:** Bucketing events by host, service or status is the first step in almost every triage script. `defaultdict(list)` removes the 'create the list if missing' branch, which is where off-by-one bugs like to hide.
+
 ### Sort dicts by count descending, then name ascending
 
 ```python
 rows.sort(key=lambda r: (-r["count"], r["name"]))
 ```
+
+**Why it matters:** A tuple key sorts by the first element, then the second, so this gives a *deterministic* order. That matters the moment output is diffed between runs or fed to automation: `reverse=True` would flip the tiebreak too and make equal rows shuffle.
 
 ### Keep only the last N seconds of timestamps (sliding window)
 
@@ -187,6 +222,8 @@ while window and window[0] <= now - 60:
 rate = len(window)
 ```
 
+**Why it matters:** Rate limiting and 'errors in the last five minutes' are the same shape. A `deque` pops from the left in constant time, where a list would copy the whole thing on every eviction — fine in a test, a CPU sink under real traffic.
+
 ### Top 5 largest items from a stream without sorting everything
 
 ```python
@@ -194,6 +231,8 @@ import heapq
 
 biggest = heapq.nlargest(5, files, key=lambda f: f.size)
 ```
+
+**Why it matters:** `nlargest` keeps only the k best in memory, so it works on a stream you can't hold all at once. Sorting a million records to look at five is the version that shows up in a CPU profile.
 
 ### Dataclass for a result record, with a default
 
@@ -209,6 +248,8 @@ class CheckResult:
     errors: list[str] = field(default_factory=list)
 ```
 
+**Why it matters:** A dataclass documents what a result contains and gives you a readable repr in logs and tests, where a bare tuple leaves everyone counting positions. `field(default_factory=list)` is the fix for the classic mutable-default bug, where every instance would otherwise share one list.
+
 ## Time
 
 ### Parse an ISO timestamp, get "now" in UTC, compute age in minutes
@@ -221,11 +262,15 @@ now = datetime.now(timezone.utc)
 age_minutes = (now - started).total_seconds() / 60
 ```
 
+**Why it matters:** Always compare aware datetimes in UTC: mixing a naive one with an aware one raises `TypeError`, usually inside an alerting path at the worst moment. `total_seconds()` (not `.seconds`, which drops whole days) is how you get a real duration.
+
 ### Parse an nginx timestamp like 17/Sep/2026:10:15:32 +0000
 
 ```python
 ts = datetime.strptime("17/Sep/2026:10:15:32 +0000", "%d/%b/%Y:%H:%M:%S %z")
 ```
+
+**Why it matters:** Web server logs don't use ISO format, so this exact strptime string comes up constantly. `%z` captures the offset and makes the result timezone-aware, which is what lets you compare it against `now` without an exception.
 
 ### Time a block of code correctly
 
@@ -236,6 +281,8 @@ start = time.monotonic()               # never time.time() for durations: wall c
 do_work()
 elapsed = time.monotonic() - start
 ```
+
+**Why it matters:** `time.monotonic` never goes backwards; `time.time` can jump when NTP corrects the clock, producing negative durations and impossible latency graphs. Use monotonic for how long, wall-clock only for when.
 
 ## Processes
 
@@ -251,6 +298,8 @@ result = subprocess.run(
 pods = json.loads(result.stdout)
 ```
 
+**Why it matters:** A list of arguments means no shell, so a filename containing a space or a semicolon can't turn into command injection. `timeout` is the one people forget: without it a hung NFS mount or an unreachable API blocks your script forever, and the cron copies pile up until the box dies.
+
 ### Handle a command that fails or hangs
 
 ```python
@@ -261,6 +310,8 @@ except subprocess.TimeoutExpired:
 except subprocess.CalledProcessError as e:
     log.error("exit %s: %s", e.returncode, e.stderr.strip())
 ```
+
+**Why it matters:** The two failure modes need different handling: a timeout means the thing is stuck, a non-zero exit means it ran and refused. Logging `e.stderr` is what turns 'the deploy failed' into an actual cause.
 
 ## HTTP
 
@@ -273,6 +324,8 @@ resp = requests.get(url, timeout=5)
 resp.raise_for_status()
 data = resp.json()
 ```
+
+**Why it matters:** `requests` has **no default timeout**, so a call without one can hang indefinitely and take your worker with it. `raise_for_status()` prevents the classic bug of parsing an error page as data and reporting nonsense.
 
 ### Retry with exponential backoff and jitter
 
@@ -289,6 +342,8 @@ for attempt in range(1, attempts + 1):
         delay = min(cap, base * 2 ** (attempt - 1))
         time.sleep(delay * random.uniform(0.5, 1.0))
 ```
+
+**Why it matters:** Retrying immediately hammers a service that's already struggling. Backing off gives it room; jitter stops every client retrying in the same instant, which is what turns a blip into a thundering herd and a full outage.
 
 ### A retry decorator with arguments
 
@@ -310,6 +365,8 @@ def retry(attempts=3, exceptions=(Exception,)):
     return decorator
 ```
 
+**Why it matters:** The same retry logic in fifteen functions is fifteen chances to get it subtly wrong. `functools.wraps` preserves the name and docstring, without which your logs and tracebacks point at `wrapper` and tell you nothing.
+
 ### Session with automatic retries on 5xx (urllib3 Retry)
 
 ```python
@@ -320,6 +377,8 @@ session = requests.Session()
 retries = Retry(total=3, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
 session.mount("https://", HTTPAdapter(max_retries=retries))
 ```
+
+**Why it matters:** A `Session` reuses the TCP connection, which is a large speed-up across many calls, and mounting a `Retry` gets you backoff without hand-rolling the loop. Know both this and the manual version: interviews ask for the loop, production usually wants this.
 
 ## Concurrency
 
@@ -339,6 +398,8 @@ with ThreadPoolExecutor(max_workers=10) as pool:
             results[url] = {"ok": False, "error": str(e)}
 ```
 
+**Why it matters:** Health checks are I/O bound, so threads give you a near-linear speed-up despite the GIL: 50 endpoints in the time of the slowest, not the sum. The `try` inside the loop is the point — one dead host must not sink the whole batch.
+
 ### Protect a shared counter across threads
 
 ```python
@@ -348,6 +409,8 @@ lock = threading.Lock()
 with lock:
     counts[name] += 1
 ```
+
+**Why it matters:** `counts[name] += 1` is read-modify-write, so two threads can interleave and lose an increment. Undercounted metrics are worse than none, because you'll trust them.
 
 ## Generators and context managers
 
@@ -362,6 +425,8 @@ def batched(iterable, n):
     while batch := list(islice(it, n)):
         yield batch
 ```
+
+**Why it matters:** Batching is how you respect an API's bulk limit or a database's transaction size while keeping memory flat. The walrus loop terminates naturally when `islice` returns an empty list — no length checks, works on an infinite stream.
 
 ### Context manager that logs how long a block took
 
@@ -378,6 +443,8 @@ def timed(name):
         log.info("%s took %.3fs", name, time.perf_counter() - start)
 ```
 
+**Why it matters:** `try/finally` means the timing is recorded even when the block raises, which is exactly when you want to know how long it ran. This is the shape of every timing decorator and Prometheus histogram you'll write.
+
 ## AWS
 
 ### Iterate every EC2 instance with a paginator (never assume one page)
@@ -393,6 +460,8 @@ for page in ec2.get_paginator("describe_instances").paginate():
             print(instance["InstanceId"], instance["State"]["Name"], tags.get("Name"))
 ```
 
+**Why it matters:** A bare `describe_instances` returns the first page only, so your 'audit of all instances' quietly misses most of the fleet and reports a clean bill of health. The paginator is the only safe habit. Tags arrive as a list of dicts, so the comprehension turning them into a real dict is worth knowing by heart.
+
 ### Catch a specific AWS error code
 
 ```python
@@ -405,6 +474,8 @@ except ClientError as e:
         raise
     print(f"{name}: no default encryption")
 ```
+
+**Why it matters:** 'No encryption configured' arrives as an exception, not as a `None`, so an audit script has to catch it to record the finding. Re-raising anything else matters: swallowing every `ClientError` would turn an expired credential into a clean report.
 
 ## Testing
 
@@ -419,6 +490,8 @@ def test_evaluate(used, expected):
     assert evaluate(used, warn=80, crit=90)[0] == expected
 ```
 
+**Why it matters:** One test body, many cases, and a separate pass/fail line for each — so a failure names the input that broke rather than hiding behind a loop. Thresholds and boundaries are exactly where the bugs live.
+
 ### pytest: temp files and replacing a function for one test
 
 ```python
@@ -431,3 +504,5 @@ def test_disk_check(tmp_path, monkeypatch):
     monkeypatch.setattr(shutil, "disk_usage", lambda path: fake)
     assert main([str(tmp_path)]) == 2
 ```
+
+**Why it matters:** `tmp_path` gives each test a clean directory that's cleaned up for you, so tests can't pollute each other or your disk. `monkeypatch` replaces a dependency for the duration of one test and restores it afterwards, which is how you test the 95%-full disk you can't actually create.
