@@ -1,6 +1,6 @@
 # Python for SRE: repetition drills
 
-A short course for building **muscle memory** in the Python that SRE and DevOps work actually
+A short course for building **muscle memory** and **learning Python fast** in the Python that SRE and DevOps work actually
 demands: parsing logs, shelling out to commands, retrying flaky HTTP, cleaning up disks, doing SLO
 maths. You won't work problems out from scratch here. For each problem you're shown a clean,
 production-quality answer, you type it, and then you rebuild it from memory against tests and a
