@@ -356,7 +356,8 @@ def cmd_help(args) -> int:
 def build_cli() -> tuple[argparse.ArgumentParser, dict[str, argparse.ArgumentParser]]:
     parser = argparse.ArgumentParser(prog="drill", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    sub = parser.add_subparsers(dest="command", required=True, metavar="command")
+    # Not required: bare `drill` should teach, not scold. main() falls back to help.
+    sub = parser.add_subparsers(dest="command", metavar="command")
     commands: dict[str, argparse.ArgumentParser] = {}
 
     def add(name: str, func, help_text: str, description: str | None = None):
@@ -417,6 +418,10 @@ def build_cli() -> tuple[argparse.ArgumentParser, dict[str, argparse.ArgumentPar
 def main(argv: list[str] | None = None) -> int:
     parser, _ = build_cli()
     args = parser.parse_args(argv)
+    if not hasattr(args, "func"):        # bare `drill`: show the same thing as `drill help`
+        parser.print_help()
+        print(LADDER)
+        return 0
     return args.func(args)
 
 
