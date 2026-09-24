@@ -9,6 +9,8 @@ then solve a variant. Reps that stay inside the target time come back less often
 """
 
 import argparse
+import ast
+import difflib
 import json
 import os
 import random
@@ -16,6 +18,7 @@ import re
 import shutil
 import subprocess
 import sys
+import textwrap
 import tomllib
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -291,17 +294,155 @@ def cmd_check(args) -> int:
     return 0
 
 
-def cmd_flash(args) -> int:
-    text = (ROOT / "PATTERNS.md").read_text()
-    cards = re.findall(r"^### (.+?)\n+```python\n(.*?)```", text, flags=re.M | re.S)
+CARD_RE = re.compile(r"^### (.+?)\n+```python\n(.*?)```", flags=re.M | re.S)
+MARKER_RE = re.compile(r"^# --- (\d+)\. (.+?)\s*$", flags=re.M)
+PATTERN_SHEET_HEADER = """\
+# drill flash - {count} cards, {when}
+#
+# Type each idiom from memory in the space under its marker. Keep the `# ---` lines:
+# they tell `drill flash --check` where one answer ends and the next begins.
+# Save the file, then come back to this terminal.
+
+"""
+
+
+def load_cards() -> list[tuple[str, str]]:
+    cards = CARD_RE.findall((ROOT / "PATTERNS.md").read_text())
     if not cards:
         sys.exit("No cards found in PATTERNS.md")
-    picks = random.sample(cards, min(args.n, len(cards)))
-    print("Type each one in your scratch file BEFORE revealing. Then compare, character for character.\n")
-    for i, (prompt, answer) in enumerate(picks, 1):
-        print(f"[{i}/{len(picks)}] {prompt}")
-        input("   ...press Enter to reveal ")
-        print("\n" + "\n".join("    " + line for line in answer.rstrip().splitlines()) + "\n")
+    return cards
+
+
+def card_history(progress: dict) -> dict:
+    return progress.setdefault("_patterns", {})
+
+
+def same_code(attempt: str, answer: str) -> tuple[bool, str | None]:
+    """Compare on structure, not formatting: whitespace and comments don't count, names do."""
+    try:
+        mine = ast.dump(ast.parse(textwrap.dedent(attempt)))
+    except SyntaxError as exc:
+        return False, f"syntax error: {exc.msg} (line {exc.lineno})"
+    if not attempt.strip():
+        return False, "left blank"
+    theirs = ast.dump(ast.parse(textwrap.dedent(answer)))
+    return mine == theirs, None
+
+
+def grade_sheet(path: Path, cards: dict[str, str]) -> int:
+    text = path.read_text()
+    sections = MARKER_RE.split(text)[1:]          # [number, title, body, number, title, body, ...]
+    if not sections:
+        sys.exit(f"No `# ---` markers left in {path.name}; can't tell the answers apart.")
+
+    progress = load_progress()
+    history = card_history(progress)
+    passed = 0
+    results = []
+
+    for i in range(0, len(sections), 3):
+        title, body = sections[i + 1], sections[i + 2]
+        answer = cards.get(title)
+        if answer is None:
+            results.append((title, False, "card not found in PATTERNS.md (title edited?)"))
+            continue
+        ok, note = same_code(body, answer)
+        passed += ok
+        results.append((title, ok, note))
+
+        record = history.setdefault(title, {"attempts": 0, "passes": 0})
+        record["attempts"] += 1
+        record["passes"] += ok
+        record["last"] = date.today().isoformat()
+        record["last_ok"] = bool(ok)
+
+    save_progress(progress)
+
+    print()
+    for title, ok, note in results:
+        print(f"{'PASS' if ok else 'FAIL'}  {title}" + (f"   ({note})" if note else ""))
+
+    for title, ok, _ in results:
+        if not ok and title in cards:
+            body = next(sections[i + 2] for i in range(0, len(sections), 3) if sections[i + 1] == title)
+            print(f"\n--- {title} ---")
+            diff = difflib.unified_diff(
+                textwrap.dedent(body).strip().splitlines(),
+                cards[title].strip().splitlines(),
+                fromfile="yours", tofile="the card", lineterm="",
+            )
+            print("\n".join(diff) or "  (nothing typed)")
+
+    print(f"\n{passed}/{len(results)} from memory.  Sheet kept at {os.path.relpath(path, ROOT)}")
+    if passed < len(results):
+        print("Retype the ones you missed now, while the correction is fresh, then re-run --check.")
+    return 0
+
+
+def cmd_flash(args) -> int:
+    cards = dict(load_cards())
+
+    if args.stats:
+        history = card_history(load_progress())
+        if not history:
+            print("No flashcard attempts logged yet. Start one:  drill flash 5")
+            return 0
+        rows = sorted(history.items(), key=lambda kv: (kv[1]["passes"] / kv[1]["attempts"], -kv[1]["attempts"]))
+        print(f"{'card':<62} {'tried':>5} {'got':>4}  last")
+        for title, r in rows:
+            print(f"{title[:60]:<62} {r['attempts']:>5} {r['passes']:>4}  "
+                  f"{r.get('last', '-')}{'' if r.get('last_ok') else '  <- missed'}")
+        return 0
+
+    if args.check:
+        sheets = sorted((ATTEMPTS / "patterns").glob("*.py")) if (ATTEMPTS / "patterns").exists() else []
+        if not sheets:
+            sys.exit("No flashcard sheet to check. Start one:  drill flash 5")
+        return grade_sheet(sheets[-1], cards)
+
+    if args.reveal:                                # the old behaviour: no file, no marking
+        picks = random.sample(list(cards.items()), min(args.n, len(cards)))
+        for i, (prompt, answer) in enumerate(picks, 1):
+            print(f"[{i}/{len(picks)}] {prompt}")
+            input("   ...press Enter to reveal ")
+            print("\n" + "\n".join("    " + line for line in answer.rstrip().splitlines()) + "\n")
+        return 0
+
+    # Default: write a sheet, open it, grade what comes back.
+    history = card_history(load_progress())
+
+    def weakness(item) -> tuple:
+        record = history.get(item[0])
+        if record is None:
+            return (1, 0)                          # never tried comes after a proven miss
+        if not record.get("last_ok"):
+            return (0, record["passes"] / record["attempts"])   # missed last time: drill it first
+        return (2, record["passes"] / record["attempts"])
+
+    pool = sorted(cards.items(), key=weakness) if args.weak else random.sample(list(cards.items()), len(cards))
+    picks = pool[:min(args.n, len(cards))]
+
+    sheet = ATTEMPTS / "patterns" / f"{datetime.now():%Y%m%d-%H%M%S}.py"
+    sheet.parent.mkdir(parents=True, exist_ok=True)
+    body = PATTERN_SHEET_HEADER.format(count=len(picks), when=f"{datetime.now():%Y-%m-%d %H:%M}")
+    body += "\n\n".join(f"# --- {i}. {title}\n\n" for i, (title, _) in enumerate(picks, 1))
+    sheet.write_text(body)
+
+    print(f"\n{len(picks)} cards, written to {os.path.relpath(sheet, ROOT)}:\n")
+    for i, (title, _) in enumerate(picks, 1):
+        print(f"  {i}. {title}")
+
+    editor = os.environ.get("EDITOR") or (shutil.which("code") and "code")
+    if editor and not args.no_open:
+        subprocess.Popen([editor, str(sheet)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print(f"\nOpened in {os.path.basename(editor)}. Type each one from memory, then save.")
+    else:
+        print("\nOpen that file and type each one from memory, then save.")
+
+    if sys.stdin.isatty():
+        input("\nPress Enter when you're done to mark it... ")
+        return grade_sheet(sheet, cards)
+    print("\nMark it with:  drill flash --check")
     return 0
 
 
@@ -450,11 +591,19 @@ def build_cli() -> tuple[argparse.ArgumentParser, dict[str, argparse.ArgumentPar
         p.add_argument("drill", help=DRILL_ARG_HELP)
         p.add_argument("--variant", action="store_true", help="act on the variant rep")
 
-    p = add("flash", cmd_flash, "N random idiom flashcards from PATTERNS.md",
-            "Show random idiom prompts from PATTERNS.md.\n\n"
-            "Type each answer in a scratch file BEFORE pressing Enter to reveal it,\n"
-            "then compare character for character.")
+    p = add("flash", cmd_flash, "type idiom flashcards from memory and have them marked",
+            "Drill the idioms in PATTERNS.md.\n\n"
+            "Writes a sheet of prompts into attempts/patterns/, opens it in your editor, and\n"
+            "marks what you typed against the cards when you come back. Marking compares the\n"
+            "code structure, so spacing and comments don't count against you, but names do.\n"
+            "Every attempt is logged: see drill flash --stats, and drill flash --weak 5 to\n"
+            "drill the ones you keep missing.")
     p.add_argument("n", nargs="?", type=int, default=5, help="how many cards (default: 5)")
+    p.add_argument("--weak", action="store_true", help="pick the cards you've missed or never tried")
+    p.add_argument("--check", action="store_true", help="mark the most recent sheet again")
+    p.add_argument("--stats", action="store_true", help="your record per card, worst first")
+    p.add_argument("--reveal", action="store_true", help="old behaviour: show answers, mark nothing")
+    p.add_argument("--no-open", action="store_true", help="don't launch an editor")
 
     p = add("sample", cmd_sample, "show what a drill's solution actually produces",
             "Show what the model solution produces, by running it.\n\n"

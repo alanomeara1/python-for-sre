@@ -76,7 +76,7 @@ target move the schedule anyway.
 ## Daily routine (~60 minutes)
 
 ```bash
-drill flash 5        # 5 min   warm-up: type 5 idioms from PATTERNS.md before revealing each
+drill flash 5        # 5 min   warm-up: type 5 idioms from memory; it marks them for you
 drill due            #         shows today's reviews + the next new drill
 drill start NN       # 20 min  reviews: recall reps of whatever is due
                      # 35 min  one NEW drill: study → copy → recall → variant
@@ -148,6 +148,13 @@ as `solution.prev.py`.
 `PATTERNS.md` holds the flashcards: ~35 idioms (argparse skeleton, subprocess with timeout, thread
 pool, paginator, retry…) small enough to type in under a minute each.
 
+`drill flash 5` writes the prompts into `attempts/patterns/<timestamp>.py`, opens it in `$EDITOR`,
+and marks your answers when you come back. Marking compares the **structure** of the code, so
+formatting and comments cost you nothing, but a wrong name or a `%y` where the card says `%Y` is
+caught and shown as a diff. Every attempt is logged, so `--weak` can feed you the ones you keep
+missing and `--stats` shows where you stand. `--reveal` gives the old show-me-the-answer behaviour,
+which is what you want away from a keyboard.
+
 ## Commands
 
 | Command | Does |
@@ -159,7 +166,9 @@ pool, paginator, retry…) small enough to type in under a minute each.
 | `drill pause NN [--variant]` | called away mid-rep: stops the clock, leaves your file alone |
 | `drill resume NN [--variant]` | starts the clock again from where it stopped |
 | `drill cancel NN [--variant]` | abandons the rep, logs nothing, keeps your file |
-| `drill flash [N]` | N random flashcards from PATTERNS.md |
+| `drill flash [N]` | writes a sheet of N idiom prompts, opens it, marks what you typed |
+| `drill flash --weak 5` | the cards you missed last time, or have never tried |
+| `drill flash --stats` | your record per card, worst first |
 | `drill verify [NN ...]` | self-test of the course: every reference passes, every stub fails |
 | `drill sample NN` | runs the model solution and shows what it produces on realistic input |
 | `drill help [command]` | all commands and the ladder, or the detail on one (`drill help start`) |
